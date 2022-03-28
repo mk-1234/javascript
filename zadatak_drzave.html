@@ -1,0 +1,406 @@
+<!--
+
+Klikom na gumb dohvati potrebno je napraviti AJAX poziv na server na sljedeći API:
+https://restcountries.com/v3.1/all
+
+Poziv će vratiti JSON sa popisom država na svijetu. Zapamtiti to polje u globalnoj
+varijabli te ispisati države unutar tablice sortirane po broju stanovnika silazno
+u obliku (ime - glavni grad - regija - broj stanovnika - zastava).
+
+Dodatne funkcionalnosti:
+
+ - Moguće je promjeniti smjer sortiranja pomoću checkboxa 'reverse' i gumba 'Osvježi'
+ - Moguće je limitirati broj prikazanih država pomoću textboxa 'limit' i gumba 'Osvježi
+ - Pomoću <select> elementa se države filtriraju po regiji. Moguće regije dohvatiti
+   iz polja država pomoću subregion svojstva (opcije se izgeneriraju dinamički
+   nakon učitavanja država).
+ - Klikom na gumb delete pored države ta država nestane sa popisa.
+ - Klikom na gumb 'Dodaj' pojavi se forma za unos nove države (prije toga je sakrivena)
+ - Dopustiti unos samo ako su svi podaci uneseni, inače obojati prazne textboxove u crveno
+ - Nakon unosa doda se novi objekt države u globalno polje država i osvježi tablica
+
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="author" content="Miroslav Krznar">
+    <title>Zadatak_države</title>
+    <style>
+        #tablica {
+            width: 50%;
+            border-top: 3px solid black;
+            border-collapse: collapse;
+        }
+        th {
+            padding: 15px 20px 15px 10px;
+            text-align: left;
+            background-color: #9dbbbd;
+            font-style: italic;
+            font-size: 16px;
+        }
+        td {
+            border-top: 1px solid #969696;
+            padding: 5px 20px 5px 10px;
+            font-size: 12px;
+        }
+        img {
+            width: 50px;
+        }
+        hr {
+            width: 50%;
+            text-align: left;
+            margin-left: 0;
+        }
+        button {
+            background-color: forestgreen;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+        }
+        .delGumb {
+            background-color: indianred;
+        }
+        #limit {
+            padding: 5px;
+            border: 2px solid green;
+            margin-right: 10px;
+            font-style: italic;
+            border-radius: 5px;
+        }
+        select {
+            padding: 5px;
+            color: darkblue;
+            background-color: yellow;
+            margin-left: 10px;
+        }
+        option {
+            font-size: 14px;
+        }
+        #divUnos {
+            margin: 10px 0;
+        }
+        #forma>input {
+            margin: 5px;
+            padding: 10px;
+            font-style: italic;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <button id="dohvat">Ucitaj drzave</button>
+    <button id="osvjezi" hidden="hidden">Osvjezi drzave</button>
+    <hr />
+    Limit:
+    <input type="text" id="limit" />
+    <label for="reverse">Reverse
+        <input type="checkbox" id="reverse" />
+    </label>
+    <select id="regije" hidden="hidden"></select>
+    <br />
+    <div id="divUnos" hidden="hidden">
+        <p>Unesi novu državu:</p>
+        <button id="dodaj">Dodaj</button>
+        <form id="forma" hidden="hidden">
+            <input type="text" id="naziv" placeholder="Naziv" /><span id="spanNaziv"></span><br />
+            <input type="text" id="glGrad" placeholder="Glavni grad" /><br />
+            <input type="text" id="reg" placeholder="Subregija" /><br />
+            <input type="text" id="zastava" placeholder="Url zastave" /><br />
+            <input type="text" id="brStan" placeholder="Broj stanovnika" /><br />
+            <button id="unos">Zavrsi dodavanje</button>
+        </form>
+    </div>
+    <div>
+        <table id="tablica">
+        </table>
+    </div>
+
+    <script type="text/javascript">
+        let drzave = [];
+        let regije = [];
+
+        document.getElementById('dohvat').addEventListener('click', DohvatDrzava);
+        document.getElementById('osvjezi').addEventListener('click', Prikazi);
+        document.getElementById('dodaj').addEventListener('click', PrikaziFormu);
+
+        document.getElementById('unos').addEventListener('click', function(event) {
+            if (!unosValjan) {
+                event.preventDefault();
+                return;
+            }
+            UnesiDrzavu();
+            event.preventDefault();
+        });
+
+        let naziv = document.getElementById('naziv');
+        naziv.addEventListener('keyup', ProvjeriUnos);
+        let glGrad = document.getElementById('glGrad');
+        glGrad.addEventListener('keyup', ProvjeriUnos);
+        let reg = document.getElementById('reg');
+        reg.addEventListener('keyup', ProvjeriUnos);
+        let zastava = document.getElementById('zastava');
+        zastava.addEventListener('keyup', ProvjeriUnos);
+        let brStan = document.getElementById('brStan');
+        brStan.addEventListener('keyup', ProvjeriUnos);
+
+        let regijeElement = document.getElementById('regije');
+        let unosValjan = false;
+
+        function DohvatDrzava() {
+            url = 'https://restcountries.com/v3.1/all';
+            fetch(url).then(data => data.json())
+                .then(data => {
+                    SelektirajPodatke(data);
+                    UnosRegija();
+                    Prikazi();
+                });
+        }
+
+        function SelektirajPodatke(data) {
+            drzave = [];
+            data.forEach((item, i) => {
+                let ime = item.name.common;
+                let glGrad = item.capital;
+                let reg = item.subregion;
+                let brStan = item.population;
+                let zastava = item.flags.png;
+                let newItem = {ime:ime, glGrad:glGrad, reg:reg, brStan:brStan, zastava:zastava};
+                drzave.push(newItem);
+            });
+        }
+
+        function Prikazi() {
+            if (document.getElementById('reverse').checked) {
+                drzave = SortUzlazno(drzave);
+            } else {
+                drzave = SortSilazno(drzave);
+            }
+            StvoriTablicu();
+            let limit = Number.parseInt(document.getElementById('limit').value);
+            if (!Number.isInteger(limit)) {
+                limit = Number.MAX_SAFE_INTEGER;
+            }
+            let brojDrzava = 0;
+            let odabranaRegija = regijeElement.value;
+            if (odabranaRegija == 'undefined') {
+                odabranaRegija = undefined;
+            }
+            drzave.forEach(drzava => {
+                if (brojDrzava < limit && (drzava.reg == odabranaRegija || odabranaRegija == 'All')) {
+                    let row = document.createElement('tr');
+                    for (let i = 0; i < 5; i++) {
+                        let col = document.createElement('td');
+                        switch (i) {
+                            case 0:
+                                col.innerHTML = drzava.ime;
+                                break;
+                            case 1:
+                                col.innerHTML = drzava.glGrad;
+                                break;
+                            case 2:
+                                col.innerHTML = drzava.reg;
+                                break;
+                            case 3:
+                                col.innerHTML = drzava.brStan;
+                                break;
+                            case 4:
+                                let image = document.createElement('img');
+                                image.src = drzava.zastava;
+                                col.appendChild(image);
+                                break;
+                            default:
+                                break;
+                        }
+                        row.appendChild(col);
+                    }
+                    let col = document.createElement('td');
+                    let btn = document.createElement('button');
+                    btn.className = "delGumb";
+                    btn.innerHTML = "Izbrisi";
+                    btn.addEventListener('click', Izbrisi);
+                    col.appendChild(btn);
+                    row.appendChild(col);
+                    if (brojDrzava % 2 == 1) {
+                        row.style.backgroundColor = "Lightgray";
+                    }
+                    document.getElementById('tablica').appendChild(row);
+                    brojDrzava++;
+                }
+            });
+            document.getElementById('regije').hidden = false;
+            document.getElementById('osvjezi').hidden = false;
+            document.getElementById('divUnos').hidden = false;
+        }
+
+        function StvoriTablicu() {
+            let tablica = document.getElementById('tablica');
+            tablica.innerHTML = `
+                <tr>
+                <th>Ime</th>
+                <th>Glavni grad</th>
+                <th>Regija</th>
+                <th>Broj stanovnika</th>
+                <th>Zastava</th>
+                <th></th>
+                </tr>
+            `;
+        }
+
+        function SortSilazno(drzave) {
+            return drzave.sort((a, b) => {
+                if (a.brStan > b.brStan) {
+                    return -1;
+                } else if (a.brStan < b.brStan) {
+                    return 1;
+                } else {
+                    return 0;
+                }
+            });
+        }
+
+        function SortUzlazno(drzave) {
+            return drzave.sort((a, b) => {
+                if (a.brStan < b.brStan) {
+                    return -1;
+                } else if (a.brStan > b.brStan) {
+                    return 1;
+                } else {
+                    return 0;
+                }
+            });
+        }
+
+        function Izbrisi(e) {
+            console.log(e);
+            let naziv = e.target.parentNode.parentNode.children[0].innerHTML;
+            console.log(naziv);
+            drzave.filter((e, i) => {
+                if (e.ime == naziv) {
+                    drzave.splice(i, 1);
+                }
+            });
+            UnosRegija();
+            Prikazi();
+        }
+
+        function UnosRegija() {
+            let setRegija = new Set;
+            for (let drzava in drzave) {
+                setRegija.add(drzave[drzava].reg);
+            }
+            regije = [...setRegija];
+            let trenutnaRegija = regijeElement.value;
+            let drzavaURegiji = 0;
+            regije.forEach(e => {
+                if (e == trenutnaRegija) {
+                    drzavaURegiji++;
+                }
+            });
+            if (drzavaURegiji == 0) {
+                trenutnaRegija = '';
+                regijeElement.value = 'All';
+            }
+            if (regijeElement.value == '' || regijeElement.value == 'All') {
+                regijeElement.innerHTML = `<option value="All" selected="selected">All</option>`;
+            } else {
+                regijeElement.innerHTML = `<option value="All" >All</option>`;
+            }
+            regije.forEach(r => {
+                if (r != trenutnaRegija) {
+                    regijeElement.innerHTML += `<option value="${r}">${r}</option>`;
+                } else {
+                    regijeElement.innerHTML += `<option value="${r}" selected="selected">${r}</option>`;
+                }
+            });
+        }
+
+        function PrikaziFormu() {
+            document.getElementById('forma').hidden = false;
+            naziv.value = "";
+            glGrad.value = "";
+            reg.value = "";
+            zastava.value = "";
+            brStan.value = "";
+            ProvjeriUnos();
+        }
+
+        function ProvjeriUnos() {
+            let nazivOk = true;
+            let glGradOk = true;
+            let regOk = true;
+            let zastavaOk = true;
+            let brStanOk = true;
+
+            if (naziv.value == "") {
+                document.getElementById('spanNaziv').innerHTML = "";
+                naziv.style.border = "2px solid red";
+                nazivOk = false;
+            } else {
+                drzave.forEach(e => {
+                    if (e.ime.toLowerCase() == naziv.value.toLowerCase()) {
+                        document.getElementById('spanNaziv').innerHTML = "Država s tim imenom već postoji!";
+                        document.getElementById('spanNaziv').style.color = "Red";
+                        nazivOk = false;
+                    }
+                });
+                if (nazivOk) {
+                    document.getElementById('spanNaziv').innerHTML = "Ime je dobro!";
+                    document.getElementById('spanNaziv').style.color = "Green";
+                    naziv.style.border = "2px solid green";
+                }
+            }
+
+            if (glGrad.value == "") {
+                glGrad.style.border = "2px solid red";
+                glGradOk = false;
+            } else {
+                glGrad.style.border = "2px solid green";
+            }
+
+            if (reg.value == "") {
+                reg.style.border = "2px solid red";
+                regOk = false;
+            } else {
+                reg.style.border = "2px solid green";
+            }
+
+            if (zastava.value == "") {
+                zastava.style.border = "2px solid red";
+                zastavaOk = false;
+            } else {
+                zastava.style.border = "2px solid green";
+            }
+
+            if (brStan.value == "" || Number.isNaN(Number.parseInt(brStan.value))) {
+                brStan.style.border = "2px solid red";
+                brStanOk = false;
+            } else {
+                brStan.style.border = "2px solid green";
+            }
+
+            if (nazivOk && glGradOk && regOk && zastavaOk && brStanOk) {
+                unosValjan = true;
+            } else {
+                unosValjan = false;
+            }
+        }
+
+        function UnesiDrzavu() {
+            let drzava = {
+                ime : naziv.value,
+                glGrad : glGrad.value,
+                reg : reg.value,
+                brStan : brStan.value,
+                zastava : zastava.value
+            };
+            drzave.push(drzava);
+            document.getElementById('forma').hidden = true;
+            UnosRegija();
+            Prikazi();
+        }
+    </script>
+</body>
+</html>

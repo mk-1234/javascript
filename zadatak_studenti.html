@@ -1,0 +1,119 @@
+<!--
+
+Deklarirati polje od 5 student objekata. Jedan student ima svojstva ime, jmbag,
+prosjek, semestar.
+
+1. Ispisati dobiveno polje u formatu  IME (JMBAG) - PROSJEK (semestar) pomoću forEach metode.
+
+2. Sortirati studente po semestru uzlazno i prosjeku silazno za studente istog semestra
+te novo dobiveno polje ispisati u istom formatu
+
+3. Iz postojećeg polja dobiti novo polje objekata, gdje svaki objekt sadrži svojstva
+godinaStudija, brojStudenata, prosjek (npr. {godina:1, brojStudenata:4, prosjek:4.12}, ...),
+te ga sortirati po prosjeku silazno.
+
+4. Filtrirati originalno polje tako da u njemu ostanu samo studenti na trećoj godini te
+izračunati i ispisati prosjek prosjeka tih studenata.
+
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Zadatak_studenti</title>
+</head>
+<body>
+    <script type="text/javascript">
+        function Student(i, j, p, s) {
+            this.ime = i;
+            this.jmbag = j;
+            this.prosjek = p;
+            this.semestar = s;
+        }
+
+        function GodinaStudij(g, b, p) {
+            this.godina = g;
+            this.brojStudenata = b;
+            this.prosjek = p;
+        }
+
+        function ispisStudenata(polje) {
+            polje.forEach(function(e) {
+                console.log(`${e.ime} (${e.jmbag}) - ${e.prosjek}(${e.semestar})`);
+            });
+        }
+
+        let poljeStudenata = [
+            new Student("Pero", "123456789", 3.8, 6),
+            new Student("Ana", "231686534", 4.7, 5),
+            new Student("Ante", "987654321", 2.3, 1),
+            new Student("Ivana", "782349645", 4.1, 6),
+            new Student("Bob", "774411229", 3.2, 2)
+        ];
+
+        ispisStudenata(poljeStudenata);
+
+        poljeStudenata.sort(function(a, b) {
+            if (a.semestar < b.semestar) { return -1; }
+            else if (a.semestar > b.semestar) { return 1; }
+            else {
+                if (a.prosjek < b.prosjek) { return 1; }
+                else if (a. prosjek > b.prosjek) { return -1; }
+                else { return 0; }
+            }
+        });
+
+        ispisStudenata(poljeStudenata);
+
+        let poljeStudij = [];
+        poljeStudenata.forEach(function(e) {
+            if (poljeStudij.length != 0) {
+                let postojiGodinaObjekt = false;
+                for (let i = 0; i < poljeStudij.length; i++) {
+                    if (poljeStudij[i].godina == Math.ceil(e.semestar / 2)) {
+                        postojiGodinaObjekt = true;
+                    }
+                }
+                if (postojiGodinaObjekt) {
+                    poljeStudij.forEach(function (x) {
+                        if (x.godina == Math.ceil(e.semestar / 2)) {
+                            let zbrojProsjeka = x.brojStudenata * x.prosjek;
+                            x.brojStudenata++;
+                            zbrojProsjeka += e.prosjek;
+                            x.prosjek = Math.round((zbrojProsjeka / x.brojStudenata) * 100) / 100;
+                        }
+                    });
+                } else {
+                    poljeStudij.push(new GodinaStudij(Math.ceil(e.semestar / 2), 1, e.prosjek));
+                }
+            } else {
+                poljeStudij.push(new GodinaStudij(Math.ceil(e.semestar / 2), 1, e.prosjek));
+            }
+        });
+
+        poljeStudij.sort(function(a, b) {
+            if (a.prosjek < b.prosjek) { return 1; }
+            else if (a.prosjek > b.prosjek) { return -1; }
+            else { return 0; }
+        });
+
+        console.log(poljeStudij);
+
+        poljeStudenata = poljeStudenata.filter(e => Math.ceil(e.semestar / 2) == 3);
+
+        console.log(poljeStudenata);
+
+        let studenataNaTrecojGodini = 0;
+        let zbrojProsjekaNaTrecojGodini = 0;
+
+        poljeStudenata.forEach(function(e) {
+            studenataNaTrecojGodini++;
+            zbrojProsjekaNaTrecojGodini += e.prosjek;
+        });
+
+        let prosjekProsjeka = Math.round((zbrojProsjekaNaTrecojGodini / studenataNaTrecojGodini) * 100) / 100;
+        console.log(`Prosjek prosjeka studenata na trecoj godini: ${prosjekProsjeka}`);
+    </script>
+</body>
+</html>
